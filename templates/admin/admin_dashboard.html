@@ -1,0 +1,72 @@
+{% extends 'admin_base.html' %}
+
+{% block title %}Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Admin Dashboard</h2>
+    <a href="{{ url_for('admin.create_draw') }}" class="btn btn-success">Create New Draw</a>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-primary text-white">
+        Current Draws
+    </div>
+    <div class="card-body">
+        {% if draws %}
+        <div class="table-responsive">
+            <table class="table table-hover table-striped">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Status</th>
+                        <th>Tickets (Available/Total)</th>
+                        <th>Price</th>
+                        <th>Created On</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for draw in draws %}
+                    <tr>
+                        <td>{{ draw.id }}</td>
+                        <td>{{ draw.name }}</td>
+                        <td>
+                            {% if draw.is_drawn %}
+                                <span class="badge bg-info">Drawn</span>
+                            {% elif not draw.is_active %}
+                                <span class="badge bg-secondary">Inactive</span>
+                            {% else %}
+                                <span class="badge bg-success">Active</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% set status_counts = draw.get_status_counts() %}
+                            {{ status_counts.available }} / {{ draw.total_tickets }}
+                            {% if status_counts.pending_payment > 0 %}
+                                <br><small class="text-warning">({{ status_counts.pending_payment }} pending)</small>
+                            {% endif %}
+                        </td>
+                        <td>${{ "%.2f"|format(draw.ticket_price) }}</td>
+                        <td>{{ draw.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td>
+                            <a href="{{ url_for('admin.draw_details', draw_id=draw.id) }}" class="btn btn-sm btn-info me-2">View Details</a>
+                            {# Edit draw route not implemented in app.py yet #}
+                            {# <a href="{{ url_for('admin.edit_draw', draw_id=draw.id) }}" class="btn btn-sm btn-warning me-2">Edit</a> #}
+                            
+                            {# Delete draw route not implemented in app.py yet #}
+                            {# <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteDrawModal-{{ draw.id }}">Delete</button> #}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-center">No draws found. <a href="{{ url_for('admin.create_draw') }}">Create your first draw!</a></p>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}

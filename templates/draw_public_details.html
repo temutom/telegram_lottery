@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+
+{% block title %}Draw Details - {{ draw.name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+
+    <!-- 🧮 Live Counters Row -->
+    {% set available_count = draw.get_status_counts()['available'] %}
+    {% set reserved_count = draw.get_status_counts()['pending_payment'] + draw.get_status_counts()['approved'] %}
+    {% set sold_tickets = draw.total_tickets - available_count %}
+    {% set sold_percentage = (sold_tickets / draw.total_tickets) * 100 %}
+
+    <div class="row text-center mb-4">
+        <div class="col-md-4 col-12 mb-2">
+            <div class="counter-box bg-success text-white p-3 rounded shadow">
+                <h4 class="fw-bold mb-0" id="availableCount">{{ available_count }}</h4>
+                <small>Available</small>
+            </div>
+        </div>
+        <div class="col-md-4 col-12 mb-2">
+            <div class="counter-box bg-warning text-dark p-3 rounded shadow">
+                <h4 class="fw-bold mb-0" id="reservedCount">{{ reserved_count }}</h4>
+                <small>Reserved</small>
+            </div>
+        </div>
+        <div class="col-md-4 col-12 mb-2">
+            <div class="counter-box bg-primary text-white p-3 rounded shadow">
+                <h4 class="fw-bold mb-0" id="totalCount">{{ draw.total_tickets }}</h4>
+                <small>Total</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- 📊 Progress Bar -->
+    <div class="mb-4">
+        <div class="d-flex justify-content-between mb-1">
+            <span class="fw-bold">🎯 Ticket Sales Progress</span>
+            <span class="fw-bold text-muted">{{ sold_tickets }}/{{ draw.total_tickets }} Sold</span>
+        </div>
+        <div class="progress" style="height: 25px; border-radius: 10px; overflow: hidden;">
+            <div class="progress-bar bg-success progress-bar-striped progress-bar-animated" 
+                 role="progressbar" 
+                 style="width: {{ sold_percentage }}%;" 
+                 aria-valuenow="{{ sold_percentage }}" 
+                 aria-valuemin="0" 
+                 aria-valuemax="100">
+                {{ sold_percentage|round(1) }}%
+            </div>
+        </div>
+    </div>
+
+    <!-- 🎟 Tickets Grid -->
+    <h4 class="mb-3 fw-bold text-center">🎟️ Tickets</h4>
+    <div class="row g-2 justify-content-center">
+        {% for ticket in tickets %}
+            {% set color = 'success' if ticket.status=='available' else ('warning text-dark' if ticket.status=='pending_payment' else 'danger') %}
+            <div class="col-3 col-sm-2 col-md-1">
+                <button type="button"
+                        class="btn btn-{{ color }} ticket-btn w-100 py-3 fw-bold"
+                        data-ticket="{{ ticket.ticket_number }}"
+                        data-status="{{ ticket.status }}"
+                        {% if ticket.status != 'available' %}disabled{% endif %}
+                        style="border-radius: 8px; font-size: 1rem;">
+                    {{ ticket.ticket_number }}
+                </button>
+            </div>
+        {% endfor %}
+    </div>
+
+</div>
+
+<!-- 💬 Modal (Reservation) -->
+<div class="modal fade" id="ticketModal" tabindex="-1" aria-labelledby="ticketModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <form id="ticketReserveForm" method="POST">
+        {{ csrf_token() }}
+        <div class="modal-content shadow-lg">
+          <div class="modal-header bg-gradient-primary text-white">
+            <h5 class="modal-title fw-bold" id="ticketModalLabel">
+              Reserve Ticket #<span id="modalTicketNumber"></span>
+            </h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+                <input type="hidden" name="ticket_number" id="modal_ticket_number">
+                <div class="mb-3">
+                    <label for="modal_username" class="form-label">Telegram Username</label>
+                    <input type="text" class="form-control" id="modal_username" name="user_username" placeholder="@username" required>
+                </div>
+                <div class="mb-3">
+                    <label for="modal_telegram_id" class="form-label">Telegram ID</label>
+                    <input type="text" class="form-control" id="modal_telegram_id" name="user_telegram_id" placeholder="123456789" required>
+                </div>
+          </div>
+          <div class="modal-footer">
+            <button type="submit" class="btn btn-success fw-bold w-100">✅ Reserve Ticket</button>
+          </div>
+        </div>
+    </form>
+  </div>
+</div>
+
+<script>
+document.querySelectorAll('.ticket-btn').forEach(btn => {
+    btn.addEventListener('click', function(){
+        const ticketNumber = this.dataset.ticket;
+        document.getElementById('modalTicketNumber').textContent = ticketNumber;
+        document.getElementById('modal_ticket_number').value = ticketNumber;
+        new bootstrap.Modal(document.getElementById('ticketModal')).show();
+    });
+});
+
+// Animate progress bar and counters
+document.getElementById('ticketReserveForm').addEventListener('submit', function(){
+    const availableEl = document.getElementById('availableCount');
+    const reservedEl = document.getElementById('reservedCount');
+    const progressBar = document.querySelector('.progress-bar');
+
+    let available = parseInt(availableEl.textContent);
+    let reserved = parseInt(reservedEl.textContent);
+    let total = parseInt(document.getElementById('totalCount').textContent);
+
+    // Update counters
+    animateCounter(availableEl, available - 1);
+    animateCounter(reservedEl, reserved + 1);
+
+    // Update progress bar
+    const newSold = total - (available - 1);
+    const soldPercentage = (newSold / total) * 100;
+    progressBar.style.width = soldPercentage + '%';
+    progressBar.textContent = soldPercentage.toFixed(1) + '%';
+});
+
+function animateCounter(element, newValue) {
+    const oldValue = parseInt(element.textContent);
+    const duration = 500;
+    const startTime = performance.now();
+    function update(time) {
+        const progress = Math.min((time - startTime) / duration, 1);
+        const value = Math.floor(oldValue + (newValue - oldValue) * progress);
+        element.textContent = value;
+        if (progress < 1) requestAnimationFrame(update);
+    }
+    requestAnimationFrame(update);
+}
+</script>
+
+<style>
+.bg-gradient-primary {
+    background: linear-gradient(90deg, #007bff, #00c6ff);
+}
+.counter-box {
+    border-radius: 12px;
+    transition: transform 0.3s ease;
+}
+.counter-box:hover {
+    transform: scale(1.05);
+}
+.ticket-btn {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.ticket-btn:hover:not(:disabled) {
+    transform: scale(1.15);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+.progress {
+    background-color: #e9ecef;
+}
+.progress-bar {
+    font-weight: bold;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: width 0.5s ease;
+}
+.modal-content {
+    border-radius: 12px;
+}
+</style>
+{% endblock %}

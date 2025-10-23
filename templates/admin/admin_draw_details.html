@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+
+  <!-- DRAW INFO CARD -->
+  <div class="card mb-4">
+    <div class="card-header bg-primary text-white">
+      <h4 class="mb-0">{{ draw.name }}</h4>
+    </div>
+    <div class="card-body">
+      <p><strong>Total Tickets:</strong> {{ draw.total_tickets }}</p>
+      <p><strong>Ticket Price:</strong> Birr{{ draw.ticket_price }}</p>
+      <p><strong>Draw Status:</strong>
+        {% if draw.is_drawn %}
+          ✅ Draw Executed
+        {% else %}
+          ⏳ Not Yet Drawn
+        {% endif %}
+      </p>
+      <p><strong>Date:</strong>
+        {% if draw.draw_time %}
+          {{ draw.draw_time.strftime('%Y-%m-%d %H:%M:%S') }}
+        {% else %}
+          {{ draw.created_at.strftime('%Y-%m-%d %H:%M:%S') }}
+        {% endif %}
+      </p>
+      <p><strong>Collected Pot:</strong> ${{ draw.get_collected_pot() }}</p>
+
+      <!-- Draw Execute Button -->
+      {% if not draw.is_drawn %}
+        <form method="POST" action="{{ url_for('admin.draw_execute', draw_id=draw.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="btn btn-danger btn-lg">
+            🎯 Execute Draw
+          </button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+<!--{% if draw.is_drawn %}
+<form method="POST" action="{{ url_for('admin.reset_draw', draw_id=draw.id) }}" 
+      onsubmit="return confirm('Are you sure you want to reset this draw? All tickets and winners will be deleted!');">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="btn btn-warning btn-lg mt-2">
+        ⚠️ Reset Draw
+    </button>
+</form>
+{% endif %}  -->
+<form method="POST" action="{{ url_for('admin.delete_draw', draw_id=draw.id) }}"
+      onsubmit="return confirm('Are you sure you want to delete this draw and all its tickets and winners?');">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="btn btn-danger btn-lg mt-2">
+        🗑️ Delete Draw
+    </button>
+</form>
+
+  <!-- WINNERS SECTION -->
+  {% if draw.is_drawn and draw.winners|length > 0 %}
+  <div class="card mb-4">
+    <div class="card-header bg-success text-white">
+      <h5 class="mb-0">🏆 Winners</h5>
+    </div>
+    <div class="card-body">
+      <table class="table table-striped">
+        <thead>
+          <tr>
+            <th>Place</th>
+            <th>Ticket #</th>
+            <th>Username</th>
+            <th>Prize Amount</th>
+            <th>Won At</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for winner in draw.winners|sort(attribute='place') %}
+          <tr>
+            <td>{{ winner.place|ordinal }}</td>
+            <td>#{{ winner.ticket.ticket_number }}</td>
+            <td>{{ winner.ticket.user_username }}</td>
+            <td>${{ winner.prize_amount }}</td>
+            <td>{{ winner.won_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+            <td>
+              <form action="{{ url_for('admin.delete_winner', winner_id=winner.id) }}" method="POST" style="display:inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this winner?');">
+                  Delete
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- TICKETS SECTION -->
+  <div class="card mb-4">
+    <div class="card-header bg-info text-white">
+      <h5 class="mb-0">🎟 Tickets</h5>
+    </div>
+    <div class="card-body">
+      <table class="table table-sm table-bordered">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Status</th>
+            <th>Reserved By</th>
+            <th>Reserved At</th>
+            <th>Approved At</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for ticket in tickets %}
+          <tr>
+            <td>{{ ticket.ticket_number }}</td>
+            <td>
+              {% if ticket.status == 'approved' %}
+                ✅ Approved
+              {% elif ticket.status == 'pending_payment' %}
+                ⏳ Pending Payment
+              {% else %}
+                🆓 Available
+              {% endif %}
+            </td>
+            <td>{{ ticket.user_username or '-' }}</td>
+            <td>
+              {% if ticket.reserved_at %}
+                {{ ticket.reserved_at.strftime('%Y-%m-%d %H:%M:%S') }}
+              {% else %}
+                -
+              {% endif %}
+            </td>
+            <td>
+              {% if ticket.approved_at %}
+                {{ ticket.approved_at.strftime('%Y-%m-%d %H:%M:%S') }}
+              {% else %}
+                -
+              {% endif %}
+            </td>
+            <td>
+              {% if ticket.status == 'pending_payment' %}
+                <form action="{{ url_for('admin.approve_payment', ticket_id=ticket.id) }}" method="POST" style="display:inline;">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="btn btn-sm btn-success">Approve</button>
+                </form>
+                <form action="{{ url_for('admin.reject_payment', ticket_id=ticket.id) }}" method="POST" style="display:inline;">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="btn btn-sm btn-danger">Reject</button>
+                </form>
+              {% else %}
+                -
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

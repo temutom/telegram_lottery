@@ -1,0 +1,45 @@
+{% extends 'admin_base.html' %}
+
+{% block title %}Admin Login{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-dark text-white text-center">
+                <h3>Admin Login</h3>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('admin.login') }}">
+                    {{ form.csrf_token }}
+                    <div class="mb-3">
+                        <label for="username" class="form-label">{{ form.username.label }}</label>
+                        {{ form.username(class="form-control", placeholder="Enter username", required=True) }}
+                        {% if form.username.errors %}
+                            <div class="text-danger">
+                                {% for error in form.username.errors %}
+                                    <span>{{ error }}</span>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">{{ form.password.label }}</label>
+                        {{ form.password(class="form-control", placeholder="Enter password", required=True) }}
+                        {% if form.password.errors %}
+                            <div class="text-danger">
+                                {% for error in form.password.errors %}
+                                    <span>{{ error }}</span>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">Login</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

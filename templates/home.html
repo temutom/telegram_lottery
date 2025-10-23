@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Home - Lottery System{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="text-center mb-5">
+        <h2 class="display-4 fw-bold">እንኳን ወደ ፈጣን ሎተሪ በደህና መጡ!</h2>
+        <p class="lead text-muted">Reserve your tickets online and try your luck!</p>
+    </div>
+
+    {% if draws %}
+        <div class="row g-4">
+            {% for draw in draws %}
+                <div class="col-md-4">
+                    <div class="card h-100 shadow-lg border-0 hover-shadow">
+                        <div class="card-header bg-gradient-primary text-white">
+                            <h5 class="card-title mb-0">{{ draw.name }}</h5>
+                        </div>
+                        <div class="card-body">
+                            <p class="mb-1"><strong>Total Tickets:</strong> {{ draw.total_tickets }}</p>
+                            <p class="mb-1"><strong>Ticket Price:</strong> Birr {{ draw.ticket_price }}</p>
+                            <p class="mb-2">
+                                <span class="badge bg-success">Available: {{ draw.get_status_counts()['available'] }}</span>
+                                <span class="badge bg-warning text-dark">Pending: {{ draw.get_status_counts()['pending_payment'] }}</span>
+                                <span class="badge bg-primary">Approved: {{ draw.get_status_counts()['approved'] }}</span>
+                            </p>
+                            {% set sold_tickets = draw.get_status_counts()['pending_payment'] + draw.get_status_counts()['approved'] %}
+                            {% set sold_percentage = (sold_tickets / draw.total_tickets * 100) if draw.total_tickets > 0 else 0 %}
+                            <div class="progress mb-3" style="height: 20px;">
+                                <div class="progress-bar bg-success" role="progressbar" style="width: {{ sold_percentage }}%;" aria-valuenow="{{ sold_percentage }}" aria-valuemin="0" aria-valuemax="100">
+                                    {{ sold_tickets }}/{{ draw.total_tickets }} Sold
+                                </div>
+                            </div>
+                            <a href="{{ url_for('public.draw_public_details', draw_id=draw.id) }}" class="btn btn-outline-primary w-100 fw-bold">Reserve Your Ticket</a>
+                        </div>
+                        <div class="card-footer text-muted text-center">
+                            {% if draw.is_drawn %}
+                                <span class="badge bg-success">🎯 Draw Executed</span>
+                            {% else %}
+                                <span class="badge bg-info text-dark">⏳ Active Draw</span>
+                            {% endif %}
+                            <small class="d-block mt-1">Created: {{ draw.created_at.strftime('%Y-%m-%d') }}</small>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="alert alert-info text-center mt-5">
+            No active draws at the moment. Please check back later.
+        </div>
+    {% endif %}
+</div>
+
+<style>
+/* Hover shadow effect */
+.hover-shadow:hover {
+    transform: translateY(-5px);
+    transition: all 0.3s ease;
+}
+.bg-gradient-primary {
+    background: linear-gradient(90deg, #007bff, #00c6ff);
+}
+</style>
+
+{% endblock %}

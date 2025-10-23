@@ -1,0 +1,59 @@
+{% extends 'admin_base.html' %}
+
+{% block title %}Create New Draw{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h3>Create New Draw</h3>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('admin.create_draw') }}">
+                    {{ form.csrf_token }}
+
+                    <div class="mb-3">
+                        <label for="name" class="form-label">{{ form.name.label }}</label>
+                        {{ form.name(class="form-control", placeholder="e.g., Tesla Model 3 Raffle", required=True) }}
+                        {% if form.name.errors %}
+                            <div class="text-danger">
+                                {% for error in form.name.errors %}<span>{{ error }}</span>{% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="total_tickets" class="form-label">{{ form.total_tickets.label }}</label>
+                        {{ form.total_tickets(class="form-control", type="number", min="1", placeholder="e.g., 1000", required=True) }}
+                        {% if form.total_tickets.errors %}
+                            <div class="text-danger">
+                                {% for error in form.total_tickets.errors %}<span>{{ error }}</span>{% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="ticket_price" class="form-label">{{ form.ticket_price.label }}</label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            {{ form.ticket_price(class="form-control", type="number", step="0.01", min="0.01", required=True) }}
+                        </div>
+                        {% if form.ticket_price.errors %}
+                            <div class="text-danger">
+                                {% for error in form.ticket_price.errors %}<span>{{ error }}</span>{% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    {# Description, Draw Date, Status, Image URL are not in CreateDrawForm in app.py, so removed #}
+
+                    <div class="d-grid gap-2 mt-4">
+                        <button type="submit" class="btn btn-primary btn-lg">Create Draw</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
