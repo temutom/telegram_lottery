@@ -21,15 +21,21 @@ import config
 load_dotenv()
 
 # Global Telegram bot application
-application = None
-
+#application = None
+# Global Telegram bot
+telegram_app = None
 # ---------------- Telegram Handlers ----------------
+# ---------------- Telegram Bot Commands ----------------
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    web_app_url = "http://127.0.0.1:5000"  # Local testing URL
+    # Detect environment for correct web app URL
+    web_app_url = os.getenv("https://telegram-lottery.onrender.com", "http://127.0.0.1:5000")
     await update.message.reply_text(
-        f"🎟️ Welcome to the Lottery Bot!\nVisit the web app to reserve tickets: {web_app_url}\n"
-        f"Your Telegram ID: `{update.effective_user.id}`\n"
-      #  f"Use /my_tickets to view your tickets."
+        f"🎟️እንኳን ወደ ፈጣን ሎተሪ በደህና መጡ!\n"
+        f"የጨዋታ ቁጥር ለመምረጥ ይህንን ዌብሳይት ይጎብኙ!!\n"
+        f"🎟️ Welcome to the Lottery Bot!\n"
+        f"Visit the web app to reserve tickets:\n{web_app_url}\n\n"
+        f"Your Telegram ID: `{update.effective_user.id}`",
+        parse_mode="Markdown"
     )
 
 async def my_tickets_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -39,29 +45,37 @@ async def my_tickets_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
         if not tickets:
             await update.message.reply_text("You have no tickets reserved or approved yet.")
             return
-        response_text = "🎟️ Your Tickets:\n"
+        response_text = "🎟️ *Your Tickets:*\n"
         for ticket in tickets:
             draw_name = ticket.draw.name
-            status_emoji = "⏳" if ticket.status == "pending_payment" else ("✅" if ticket.status == "approved" else "🎫")
-            response_text += f"{status_emoji} Draw: '{draw_name}', Ticket #{ticket.ticket_number} (Status: {ticket.status})\n"
+            status_emoji = {
+                "pending_payment": "⏳",
+                "approved": "✅",
+                "available": "🎫"
+            }.get(ticket.status, "❔")
+            response_text += f"{status_emoji} *Draw:* {draw_name}, Ticket #{ticket.ticket_number} (*{ticket.status}*)\n"
             if ticket.status == 'pending_payment' and ticket.reserved_at:
-                expiry_time = ticket.reserved_at + timedelta(hours=current_app.config.get('TICKET_RESERVATION_EXPIRY_HOURS', 24))
-                response_text += f"   Expires: {expiry_time.strftime('%Y-%m-%d %H:%M:%S')} UTC\n"
-        await update.message.reply_text(response_text)
+                expiry_time = ticket.reserved_at + timedelta(
+                    hours=current_app.config.get('TICKET_RESERVATION_EXPIRY_HOURS', 24)
+                )
+                response_text += f"   ⏰ Expires: {expiry_time.strftime('%Y-%m-%d %H:%M:%S')} UTC\n"
+        await update.message.reply_text(response_text, parse_mode="Markdown")
 
 async def unknown_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Unknown command. Use /start to begin.")
+    await update.message.reply_text("Unknown command. Use /start or /my_tickets.")
+
 
 def setup_telegram_bot():
-    global application
-    TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
+    global telegram_app
+    TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
     if not TOKEN:
         print("⚠️ TELEGRAM_BOT_TOKEN not set in .env")
-        return
-    application = Application.builder().token(TOKEN).build()
-    application.add_handler(CommandHandler("start", start_command))
-    application.add_handler(CommandHandler("my_tickets", my_tickets_command))
-    application.add_handler(MessageHandler(filters.COMMAND, unknown_command))
+        return None
+    telegram_app = Application.builder().token(TOKEN).build()
+    telegram_app.add_handler(CommandHandler("start", start_command))
+    telegram_app.add_handler(CommandHandler("my_tickets", my_tickets_command))
+    telegram_app.add_handler(MessageHandler(filters.COMMAND, unknown_command))
+    return telegram_app
 
 
 # ---------------- Admin Blueprint ----------------
@@ -352,24 +366,21 @@ def create_app():
 
 
 # ---------------- Run App ----------------
-if __name__ == '__main__':
-    app = create_app()
+# ---------------- Create and Run ----------------
+app = create_app()  # ✅ Required for Render (Gunicorn looks for this)
+
+if __name__ == "__main__":
     with app.app_context():
-        setup_telegram_bot()
         db.create_all()
-        if not AdminUser.query.filter_by(username='admin').first():
-            admin_pass = app.config.get('ADMIN_PASSWORD', 'admin123')
-            admin_user = AdminUser(username='admin', password_raw=admin_pass)
+        setup_telegram_bot()
+        if not AdminUser.query.filter_by(username="admin").first():
+            default_pass = app.config.get('ADMIN_PASSWORD', 'admin123')
+            admin_user = AdminUser(username="admin", password_raw=default_pass)
             db.session.add(admin_user)
             db.session.commit()
-            print(f'✅ Default admin created: username=admin password={admin_pass}')
+            print(f"✅ Default admin created: username=admin password={default_pass}")
 
-    # Run Telegram bot in background
-    def run_bot():
-        asyncio.run(application.run_polling())
+    if telegram_app:
+        threading.Thread(target=lambda: asyncio.run(telegram_app.run_polling())).start()
 
-    if application:
-        threading.Thread(target=run_bot).start()
-
-    # Run Flask
-    app.run(debug=True, port=5000)
+    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5000)))
