@@ -336,14 +336,16 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(config.Config)
 
+    from models import db, bcrypt, AdminUser
     db.init_app(app)
     bcrypt.init_app(app)
+
     login_manager = LoginManager(app)
     login_manager.login_view = 'admin.login'
     login_manager.login_message_category = 'info'
     init_login_manager(login_manager)
 
-    # Telegram bot
+    # Telegram bot setup
     TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN')
     if TOKEN:
         from telegram.ext import Application
@@ -352,19 +354,20 @@ def create_app():
         application.add_handler(CommandHandler("my_tickets", my_tickets_command))
         application.add_handler(MessageHandler(filters.COMMAND, unknown_command))
 
+    # Register Blueprints
     app.register_blueprint(public_bp)
     app.register_blueprint(admin_bp)
 
-    # Global Jinja filters
+    # Jinja filters
     app.jinja_env.filters['ordinal'] = ordinal_suffix
 
     @app.context_processor
     def inject_global_vars():
         return dict(datetime=datetime, timedelta=timedelta, csrf_token=generate_csrf, config=app.config)
 
-    #return app
+    # --- Auto-create database tables and default admin (important for Render) ---
     with app.app_context():
-        db.create_all()  # Creates tables if they don't exist
+        db.create_all()
         if not AdminUser.query.filter_by(username='admin').first():
             admin_pass = app.config.get('ADMIN_PASSWORD', 'admin123')
             admin_user = AdminUser(username='admin', password_raw=admin_pass)
@@ -373,6 +376,7 @@ def create_app():
             print(f'✅ Default admin created: username=admin password={admin_pass}')
 
     return app
+
 
 
 # ---------------- Run App ----------------
