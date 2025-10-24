@@ -362,25 +362,38 @@ def create_app():
     def inject_global_vars():
         return dict(datetime=datetime, timedelta=timedelta, csrf_token=generate_csrf, config=app.config)
 
+    #return app
+    with app.app_context():
+        db.create_all()  # Creates tables if they don't exist
+        if not AdminUser.query.filter_by(username='admin').first():
+            admin_pass = app.config.get('ADMIN_PASSWORD', 'admin123')
+            admin_user = AdminUser(username='admin', password_raw=admin_pass)
+            db.session.add(admin_user)
+            db.session.commit()
+            print(f'✅ Default admin created: username=admin password={admin_pass}')
+
     return app
 
 
 # ---------------- Run App ----------------
 # ---------------- Create and Run ----------------
-app = create_app()  # ✅ Required for Render (Gunicorn looks for this)
+#app = create_app()  # ✅ Required for Render (Gunicorn looks for this)
 
-if __name__ == "__main__":
-    with app.app_context():
-        db.create_all()
-        setup_telegram_bot()
-        if not AdminUser.query.filter_by(username="admin").first():
-            default_pass = app.config.get('ADMIN_PASSWORD', 'admin123')
-            admin_user = AdminUser(username="admin", password_raw=default_pass)
-            db.session.add(admin_user)
-            db.session.commit()
-            print(f"✅ Default admin created: username=admin password={default_pass}")
+if __name__ == '__main__':
+    app = create_app()
 
-    if telegram_app:
-        threading.Thread(target=lambda: asyncio.run(telegram_app.run_polling())).start()
+    # Start Telegram bot in a background thread
+    if application:
+        import asyncio
+        import threading
 
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5000)))
+        def start_bot():
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(application.run_polling())
+
+        threading.Thread(target=start_bot, daemon=True).start()
+        print("✅ Telegram bot started in background")
+
+    # Run Flask
+    app.run(debug=True, port=5000)
