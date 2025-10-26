@@ -381,10 +381,10 @@ def create_app():
 
 # ---------------- Run App ----------------
 # ---------------- Create and Run ----------------
-#app = create_app()  # ✅ Required for Render (Gunicorn looks for this)
+app = create_app()  # ✅ Required for Render (Gunicorn looks for this)
 
 if __name__ == '__main__':
-    app = create_app()
+    #app = create_app()
 
     # Start Telegram bot in a background thread
     if application:
